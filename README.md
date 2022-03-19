@@ -30,7 +30,7 @@ python3 generator.py lolbas build -od ~/TheVault/LOLBAS/
 
 Now all you have to do is open the vault in Obsidian:
 
-![obsidian](docts/resources/obsidian_attack.png)
+![obsidian](docs/resources/obsidian_attack.png)
 
 # Docs
 

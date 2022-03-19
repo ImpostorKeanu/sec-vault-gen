@@ -2,6 +2,7 @@
 
 ## Requirements
 
+- Git
 - Python >= 3.9
 
 ## Supported Platforms
