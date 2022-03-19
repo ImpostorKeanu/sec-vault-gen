@@ -1,0 +1,21 @@
+# Tool name, which can differ from the repo name
+name: ----
+
+# Maintainer's name and email
+maintainer:
+  name: ----
+  email: ----
+
+# TTP tags with the format: <MITRE Tactic>/<Technique>
+# URL for reference: https://attack.mitre.org/tactics/enterprise/
+ttps:
+  - ----
+  
+# Bulleted high level description. Please keep bullets brief.
+descriptions:
+  - ----
+  - ----
+  
+# Determines if the tool can be discussed publicly
+# Valid Values: true, false
+public: ----
