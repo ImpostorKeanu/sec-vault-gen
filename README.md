@@ -2,6 +2,8 @@
 
 Quickly parse, format, and output common frameworks/content for [Obsidian.md](https://obsidian.md).
 
+I ripped this out in 1-2 days so it's at minimum viable product at the moment.
+
 # Quickstart
 
 _This assumes all packages have been installed via PIP. See [Installation](docs/Installation.md)
@@ -14,7 +16,6 @@ Just execute the proper `build` subcommand and `generator.py` will:
 3. Embed frontmatter with tagging.
 4. Format them to `.md` files.
 5. And dump the files to disk in a directory of your choice.
-6. 
 
 Assuming your vault is named `TheVault`, these commands should work
 to build out the MITRE ATT&CK framework and LOLBAS:
