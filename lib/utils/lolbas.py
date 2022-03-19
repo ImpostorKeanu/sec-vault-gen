@@ -99,10 +99,8 @@ class Build(Util):
                     id_ = c.get('MitreID')
                     if id_ is not None:
                         fm['MitreIDs'].append(id_)
+                        fm['tags'].append(Tag(f'lolbas/{d.name}'))
                         fm['tags'].append(Tag(f'technique_id/{id_}'))
-
-    
-                #fm['MitreIDs'] = [c['MitreID'] for c in fm['Commands'] if 'MitreID' in c]
 
                 # ========================
                 # PREPARE ACKNOWLEDGEMENTS
