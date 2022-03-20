@@ -44,3 +44,9 @@ to a MITRE ATT&CK tactic and (optionally) technique name. The
 technique Id value isn't descriptive and this is a more
 natural method of determining which techniques a given note
 should be linked to.
+
+Here's the format:
+
+```
+mitre/attack/linker/<tactic_name>/<technique_name>
+```
