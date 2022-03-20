@@ -7,6 +7,11 @@ accepted framework that can be used to bind notes to.
 
 I ripped this out in 1-2 days so it's only at minimum viable product.
 
+# Docs
+
+- [Installation](docs/Installation.md)
+- [Linking Back to MITRE ATT&CK](docs/Linking%20Back%20to%20MITRE%20ATT%26CK.md)
+
 # Quickstart
 
 _This assumes all packages have been installed via PIP. See [Installation](docs/Installation.md)
@@ -49,12 +54,3 @@ MITRE ATT&CK:
 ```
 tag:#lolbas OR tag:#mitre/attack/technique OR tag:#mitre/attack/technique
 ```
-
-# Docs
-
-- [Installation](docs/Installation.md)
-- [Linking Back to MITRE ATT&CK](docs/Linking%20Back%20to%20MITRE%20ATT%26CK.md)
-
-# Pending Enhancements
-
-- Establish links between technique files and LOLBAS items.
