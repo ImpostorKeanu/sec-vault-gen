@@ -52,5 +52,5 @@ MITRE ATT&CK:
 *Tip:* Here's the filter I used. You'll have to go about grouping by isolating the tags.
 
 ```
-tag:#lolbas OR tag:#mitre/attack/technique OR tag:#mitre/attack/technique
+tag:#lolbas OR tag:#mitre/attack/technique
 ```
