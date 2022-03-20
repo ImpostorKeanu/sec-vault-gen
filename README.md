@@ -7,6 +7,8 @@ accepted framework that can be used to bind notes to.
 
 I ripped this out in 1-2 days so it's only at minimum viable product.
 
+*This should have been an Obsidian plugin but I didn't want to JS.*
+
 # Docs
 
 - [Installation](docs/Installation.md)
