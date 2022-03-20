@@ -16,6 +16,8 @@ These links then draw relationships between the ATT&CK framework
 and your own notes, allowing for the relationships to be clearly
 rendered in global/local graph views.
 
+**tl;dr:** Set up metadata and run `python3 generator.py mitre-attack link --help`
+
 # The `mitre_data` Frontmatter Element
 
 The following structure can be embedded in files that are intended
