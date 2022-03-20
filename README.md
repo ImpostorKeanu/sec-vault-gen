@@ -38,7 +38,7 @@ Now all you have to do is open the vault in Obsidian:
 
 ![obsidian](docs/resources/obsidian_attack.png)
 
-Enaging "graph view" and applying a filter with group colors on tags should yield
+Engaging "graph view" and applying a filter with group colors on tags should yield
 output similar to the following, where green nodes are LOLBAS notes and red are
 MITRE ATT&CK:
 
