@@ -37,12 +37,23 @@ if __name__ == '__main__':
 
     # BUILD ATT&CK
     attack_build_p = attack_sp.add_parser('build',
-        help='Parse, format, and output LOLBAS for Obsidian.',
+        help='Build the ATT&CK Framework directory. Save this in an '
+            'Obsidian vault.',
         parents=(attack.Build.arg_parser,))
 
     attack_build_p.set_defaults(
         util_cls=attack.Build,
         parser=attack_build_p)
+
+    # LINK INTO ATT&CK
+    attack_link_p = attack_sp.add_parser('link',
+        help='Link vault files into ATT&CK Framework files, allowing '
+          'Obsidian to visualize related files.',
+        parents=(attack.Link.arg_parser,))
+
+    attack_link_p.set_defaults(
+        util_cls=attack.Link,
+        parser=attack_link_p)
 
     # ======
     # LOLBAS
@@ -55,6 +66,8 @@ if __name__ == '__main__':
 
     # BUILD LOLBAS
     lolbas_build_p = lolbas_sp.add_parser('build',
+        help='Build the LOLBAS directory. Save this in an Obsidian '
+          'vault.',
         parents=(lolbas.Build.arg_parser,))
 
     lolbas_build_p.set_defaults(

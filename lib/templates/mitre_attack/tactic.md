@@ -1,7 +1,3 @@
----
-tags: 
-  - mitre/attack/tactic
----
 {%- import 'macros.md' as macros %}
 {% include 'mitre_attack/includes/base.md' %}
 

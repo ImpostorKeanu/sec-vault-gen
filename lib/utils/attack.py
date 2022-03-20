@@ -15,6 +15,8 @@ import re
 import json
 import shutil
 
+from IPython import embed
+
 RE_CITATION         = re.compile('\(Citation: (?P<value>.*?)\)', re.I)
 RE_ATTACK_JSON_NAME = re.compile(
     '^enterprise-attack-'
@@ -59,6 +61,7 @@ def initializer(obj, dir_path, file_ext='.md',
     ext_refs = obj.get('external_references', [])
     citations = RE_CITATION.findall(obj.get('description', '')) + \
         RE_CITATION.findall(obj.get('x_mitre_detection',''))
+
     for ind in range(0,len(ext_refs)):
         
         ref = ext_refs[ind]
@@ -197,6 +200,198 @@ def normalizeShortname(v):
         w.capitalize() if not w in ['and'] else w
         for w in v.split('-')))
 
+class Link(Util):
+
+    log = getLogger('attack.link')
+
+    ap = arg_parser = ArgumentParser(
+        description='Embed links into ATT&CK framework files.',
+        parents=(
+            args.attackDirectory(),),
+        add_help=False)
+
+    ap.add_argument('--vault-scan-depth',
+        default=10, type=int,
+        help='Depth to scan for the .obsidian directory that '
+          'generally indicates the root of an Obsidian vault.')
+
+    ap._action_groups[1].title = 'arguments'
+
+    @staticmethod
+    def link(attack_directory:str, vault_scan_depth:int):
+
+        p_attack_dir = Path(attack_directory)
+
+        if not p_attack_dir.exists():
+
+            Link.log.info(
+                f'Attack directory "{p_attack_dir}" does not exist. '
+                'Exiting.')
+            exit()
+
+        # ==========================
+        # FIND THE ROOT OF THE VAULT
+        # ==========================
+
+        Link.log.info('Scanning for vault root...')
+        p_vault_dir = p_attack_dir / '..' / '.obsidian'
+        while vault_scan_depth > 0:
+
+            vault_scan_depth -= 1
+
+            if p_vault_dir.exists() and p_vault_dir.is_dir():
+                p_vault_dir = (p_vault_dir / '..').resolve()
+                Link.log.info(f'Found vault root: {p_vault_dir}')
+                break
+
+            if vault_scan_depth == 0:
+                Link.log.info('Failed to find vault root! Exiting.')
+                exit()
+
+            p_vault_dir = p_vault_dir / '..' / '.obsidian'
+
+        # ================================
+        # GENERATE AN INDEX OF MITRE FILES
+        # ================================
+
+        Link.log.info('Extracting metadata from MITRE ATT&CK files...')
+        mitre = dict()
+        for item in p_attack_dir.glob('**/*.md'):
+
+            with item.open('r+') as infile:
+                fm = FM.read(infile)
+
+            if not fm: continue
+
+            mdata = fm.get('mitre_data', dict())
+
+            mitre[item] = dict(
+                linker_tags = mdata.get('linker_tags', list()),
+                technique_id = (mdata.get('id', '').lower()),
+                vault_links = list())
+
+        # =======================
+        # PROCESS NON-MITRE FILES
+        # =======================
+
+        linker_pref = 'mitre/attack/linker'
+
+        # Number of path parts 
+        path_slice = len(p_vault_dir.parts)
+
+        # Signature to know if a file should be skipped
+        # We never want to parse MITRE files
+        omitter = '[[' + p_attack_dir.name + '/'
+
+        # Begin searching for files that wish to link into
+        # MITRE.
+        Link.log.info('Processing Non-MITRE ATT&CK files for '
+            'tags/technique IDs')
+        for item in p_vault_dir.glob('**/*.md'):
+
+            link = "/".join(item.parts[path_slice:])
+            name = str(link).replace('.md', '')
+            link = f'[[{link}|{name}]]'
+
+            # Skip unrelated files
+            if link.startswith(omitter):
+                continue
+
+            # Read in frontmatter
+            with item.open('r+') as f:
+                fm = FM.read(f)
+
+            # Look for linker tags
+            tags = fm.get('tags')
+            linker_tags = []
+            if isinstance(tags, list):
+
+                for tag in tags:
+
+                    if not tag.startswith(linker_pref):
+                        continue
+                    else:
+                        linker_tags.append(tag)
+
+                    # TODO: Scan MITRE linker tags and
+                    # append the link.
+                
+            # Check mitre_data
+            tech_ids = list()
+            if fm and 'mitre_data' in fm:
+
+                tech_ids = [
+                    str(i).lower() for i in
+                    fm['mitre_data'].get('technique_ids', list())
+                ]
+
+            # =================================
+            # ASSOCIATE LINKS TO MITRE ELEMENTS
+            # =================================
+
+            for path, mdata in mitre.items():
+
+                for t in linker_tags:
+
+                    if t in mdata['linker_tags'] and \
+                            not link in mdata['vault_links']:
+
+                        mdata['vault_links'].append(link)
+                        continue
+
+                m_tid = mdata.get('technique_id')
+
+                if m_tid in tech_ids and not \
+                        link in mdata['vault_links']:
+
+                    mdata['vault_links'].append(link)
+                    continue
+
+        # ================================
+        # WRITE VAULT LINKS TO MITRE FILES
+        # ================================
+        Link.log.info('Writing "Vault Links" section to each MITRE '
+            'file')
+
+        header = '\n\n# Vault Links\n'
+        for path, mdata in mitre.items():
+            if len(mdata['vault_links']) == 0: continue
+            with path.open('a+') as mfile:
+
+                # ==============================
+                # TRUNCATE AT VAULT LINKS HEADER
+                # ==============================
+
+                mfile.seek(0)
+                offset = 0
+                found = False
+
+                for line in mfile:
+                    if found == False:
+                        offset += len(line)
+                        if line == '# Vault Links\n':
+                            found = True
+
+                if found:
+                    mfile.seek(offset-len(header))
+                    mfile.truncate()
+
+                # ===========
+                # WRITE LINKS
+                # ===========
+
+                mfile.write(header)
+                for link in mdata['vault_links']:
+                    mfile.write(f'\n - {link}')
+
+        Link.log.info('Linking complete. MITRE ATT&CK tactic and '
+            'technique files should now contain a "Vault Links" '
+            'section with links to properly configured files.')
+
+    def __call__(self, *args, **kwargs):
+
+        return Link.link(*args, **kwargs)
+
 class Build(Util):
 
     log = getLogger('attack.build')
@@ -208,14 +403,10 @@ class Build(Util):
                 required=False,
                 default='MITRE Attack',
                 help='Directory to receive output. '+ART),
-            ),
+            args.cleanUp(
+                help='Determines if the repository should be deleted '
+                'after parsing.'),),
         add_help=False)
-
-    ap.add_argument('--clean-up',
-        action=BooleanOptionalAction,
-        default=True,
-        help='Determines if the repository should be deleted after '
-            'parsing.')
 
     ap.add_argument('--attack-repo',
         default='https://github.com/mitre-attack/attack-stix-data',
@@ -626,6 +817,13 @@ class Build(Util):
                 # AGGREGATE TECHNIQUE LINKS INTO A DICITONARY
                 # ===========================================
 
+                tags = ['mitre/attack/tactic']
+
+                mitre_data = dict(
+                    linker_tags=[f'mitre/attack/linker/{tactic["_tag_name"]}'])
+
+                FM.write(outfile, dict(tags=tags, mitre_data=mitre_data))
+
                 links = {}
                 for _id, tech in tactic['_techniques'].items():
 
@@ -660,26 +858,18 @@ class Build(Util):
 
                 tags = [
                         "mitre/attack/technique",
-                        f"technique_id/{tech['_ext_id']}"
                 ]
 
-                # Tactic tags
-                tags += [
-                            f"mitre/attack/technique/tactic/{t}"
-                            for t in
-                            tech.get('_tactic_tag_names', list())
-                        ]
-
-                
                 FM.write(outfile, dict(
                         tags=tags,
                         mitre_data=dict(
                             name=tech['name'],
                             id=tech['_ext_id'],
-                            tag=dict(
-                                name=tech['_tag_name'],
-                                partials=tech['_tag_partials'],
-                                tactic_names=tech['_tactic_tag_names'])
+                            related_tactics=tech['_tactic_tag_names'],
+                            linker_tags=[
+                                f'mitre/attack/linker/{p}' for p in
+                                tech['_tag_partials']
+                            ]
                         )))
 
                 # ======================

@@ -1,5 +1,6 @@
 from argparse import (ArgumentParser as AP,
-    _HelpAction as HA)
+    _HelpAction as HA,
+    BooleanOptionalAction)
 from lib.globals import *
 
 def genParentArg(*args, **kwargs):
@@ -65,51 +66,16 @@ def outputDirectory(name_or_flags=('--output-directory',),
             'Required: %(required)s; Default: %(default)s'):
     pass
 
-# ================
-# GITLAB ARGUMENTS
-# ================
+@argument
+def cleanUp(name_or_flags=('--clean-up',),
+        action=BooleanOptionalAction,
+        default=True,
+        help='Clean up files and directories after execcution.'):
+    pass
 
-gitlab_url = genParentArg('--gitlab-url',
-    default=GITLAB_HTTPS_URL,
-    help='URL to the Kb repository. Default: %(default)s')
-
-gitlab_username = genParentArg('--gitlab-username',
-    default=GITLAB_USERNAME,
-    help='Username used during authentication to GitLab. '
-        f'Default: %(default)s')
-
-gitlab_token = genParentArg('--gitlab-token',
-    required=True,
-    help='GitLab token for authentication. Required: %(required)s')
-
-# ====================
-# KB-RELATED ARGUMENTS
-# ====================
-
-kb_path = genParentArg('--kb-path',
-    default=KB_DIR,
-    help='Local KB directory. Default: %(default)s')
-
-kb_repo_url = genParentArg('--kb-repo-url',
-    default=KB_REPO_URL,
-    help='Full URL to the KB repository. Default: %(default)s')
-
-kb_repo_branch = genParentArg('--kb-repo-branch',
-    default='master',
-    help='Repository branch to act on. Default: %(default)s')
-
-kb_repo_name = genParentArg('--kb-repo-name',
-    default=KB_REPO_NAME,
-    help='Name of the repository. Default: %(default)s')
-
-# =============
-# GIT ARGUMENTS
-# =============
-
-commit_msg = genParentArg('--commit-msg',
-    default='Automated Push',
-    help='Commit message. Default: %(default)s')
-
-push_changes = genParentArg('--push-changes',
-    action='store_true',
-    help='Determines if changes should be pushed. Default: %(default)s')
+@argument
+def attackDirectory(name_or_flags=('--attack-directory',),
+        required=True,
+        help='Absolute path to where MITRE ATT&CK has been deployed in a '
+            'vault.'):
+    pass

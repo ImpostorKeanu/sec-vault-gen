@@ -156,6 +156,7 @@ def read(f:TextIOWrapper) -> dict:
                 fm['tags'] = tags
 
             except Exception as e:
+
                 log.debug(
                     f'Failed to parse frontmatter for {f.name}: {e}'
                 )

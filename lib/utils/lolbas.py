@@ -25,18 +25,11 @@ class Build(Util):
     ap = arg_parser = ArgumentParser(
         description='Build the LOLBAS framework.',
         parents=(
-            args.outputDirectory(('--output-directory','-od',),
+            args.outputDirectory(('--output-directory', '-od',),
                 required=False,
-                default='Volatile/LOLBAS',
-                help='Appended to --kb-path; directory to receive output. '+ART),
-            ),
+                help='Directory to receive output. '+ART),
+            args.cleanUp(),),
         add_help=False)
-
-    ap.add_argument('--clean-up',
-        action=BooleanOptionalAction,
-        default=True,
-        help='Determines if the repository should be deleted after '
-            'parsing.')
 
     ap.add_argument('--lolbas-repo',
         default='https://github.com/LOLBAS-Project/LOLBAS',
@@ -94,13 +87,14 @@ class Build(Util):
                         c for c in fm['Commands'] if c['Category'] == cat
                     ]
 
-                fm['MitreIDs'] = []
+                technique_ids = []
                 for c in fm['Commands']:
                     id_ = c.get('MitreID')
-                    if id_ is not None:
-                        fm['MitreIDs'].append(id_)
-                        fm['tags'].append(Tag(f'lolbas/{d.name}'))
-                        fm['tags'].append(Tag(f'technique_id/{id_}'))
+                    if not id_ in technique_ids:
+                        technique_ids.append(id_)
+                        fm['tags'].append(Tag(f'lolbas/{d.name.lower()}'))
+
+                fm['mitre_data'] = dict(technique_ids=technique_ids)
 
                 # ========================
                 # PREPARE ACKNOWLEDGEMENTS

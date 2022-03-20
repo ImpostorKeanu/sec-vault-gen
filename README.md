@@ -2,7 +2,10 @@
 
 Quickly parse, format, and output common frameworks/content for [Obsidian.md](https://obsidian.md).
 
-I ripped this out in 1-2 days so it's at minimum viable product at the moment.
+There is a strong focus on MITRE ATT&CK because it provides a solid and generally
+accepted framework that can be used to bind notes to.
+
+I ripped this out in 1-2 days so it's only at minimum viable product.
 
 # Quickstart
 
@@ -26,6 +29,7 @@ for each subcommand.
 ```bash
 python3 generator.py mitre-attack build -od ~/TheVault/MITRE\ Attack/
 python3 generator.py lolbas build -od ~/TheVault/LOLBAS/
+python3 generator.py mitre-attack link --attack-directory ~/TheVault/MITRE\ Attack/
 ```
 
 ![execution](docs/resources/execution.png)
@@ -34,9 +38,22 @@ Now all you have to do is open the vault in Obsidian:
 
 ![obsidian](docs/resources/obsidian_attack.png)
 
+Enaging "graph view" and applying a filter with group colors on tags should yield
+output similar to the following, where green nodes are LOLBAS notes and red are
+MITRE ATT&CK:
+
+![obsidian_global_graph](docs/resources/obsidian_global_graph.png)
+
+*Tip:* Here's the filter I used. You'll have to go about grouping by isolating the tags.
+
+```
+tag:#lolbas OR tag:#mitre/attack/technique OR tag:#mitre/attack/technique
+```
+
 # Docs
 
 - [Installation](docs/Installation.md)
+- [Linking Back to MITRE ATT&CK](docs/Linking Back to MITRE ATT&CK.md)
 
 # Pending Enhancements
 
