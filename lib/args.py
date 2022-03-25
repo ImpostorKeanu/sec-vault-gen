@@ -2,6 +2,8 @@ from argparse import (ArgumentParser as AP,
     _HelpAction as HA,
     BooleanOptionalAction)
 from lib.globals import *
+import inspect
+from functools import wraps
 
 def genParentArg(*args, **kwargs):
 
@@ -33,9 +35,6 @@ def genArgGroup(mutually_exclusive=False, mutually_required=False,
 # =================
 # GENERIC ARGUMENTS
 # =================
-
-import inspect
-from functools import wraps
 
 def argument(f):
 
@@ -78,4 +77,11 @@ def attackDirectory(name_or_flags=('--attack-directory',),
         required=True,
         help='Absolute path to where MITRE ATT&CK has been deployed in a '
             'vault.'):
+    pass
+
+@argument
+def inputFiles(name_or_flags=('--input-files', '-ifs'),
+        nargs='+',
+        required=True,
+        help='Input files to process.'):
     pass

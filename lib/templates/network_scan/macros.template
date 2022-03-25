@@ -1,0 +1,35 @@
+
+
+{% macro formatWikiLink(target, text) -%}
+[[{{ target }}|{{ text }}]]
+{%- endmacro %}
+
+{####################}
+
+{% macro bulletList(value_list) -%}
+{% for v in value_list -%}
+- {{ v }}
+{%- endfor %}
+{%- endmacro %}
+
+{####################}
+
+{% macro writePort(port) -%}
+### {{ port['number'] }} / {{ port['protocol'] }} {% if port['service_name'] -%} // {{ port['service_name']|upper }} {%- endif %}
+
+{{ bulletList(bulletList(port.get('script_links', []))) }}
+{%- endmacro %}
+
+{####################}
+
+{% macro iterPorts(attr, heading) -%}
+## {{ heading }}
+
+{% if host.get(attr, False) -%}
+  {% for port in host[attr] -%}
+    {{ writePort(port) }}
+  {%- endfor %}
+{%- endif %}
+{%- endmacro %}
+
+{####################}

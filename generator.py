@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from lib.utils import (attack, lolbas)
+from lib.utils import (attack, lolbas, network_scan)
 from logging import getLogger
 from sys import exit
 
@@ -73,6 +73,24 @@ if __name__ == '__main__':
     lolbas_build_p.set_defaults(
         util_cls=lolbas.Build,
         parser=lolbas_build_p)
+
+    # ============
+    # NETWORK SCAN
+    # ============
+
+    ns_p = subparsers.add_parser('network-scan',
+        help='Parse and format Nmap and Nessus scans.')
+    ns_p.set_defaults(parser=ns_p)
+    ns_sp = ns_p.add_subparsers()
+
+    # BUILD NETWORK SCAN
+    ns_build_p = ns_sp.add_parser('build',
+        help='Build the output from Nmap and Nessus scans.',
+        parents=(network_scan.Build.arg_parser,))
+
+    ns_build_p.set_defaults(
+        util_cls=network_scan.Build,
+        parser=ns_build_p)
 
     # ===================
     # PARSE THE ARGUMENTS
