@@ -1,5 +1,5 @@
-{%- import 'macros.template' as macros %}
-# {{ plugin.get('name') }}
+{%- import 'network_scan/macros.template' as macros %}
+# {{ plugin.get('plugin_name') }}
 
 ## Description
 
@@ -11,6 +11,14 @@
 
 ## See Also
 
-{{ plugin.get('see_also') }}
+{{ macros.bulletList(plugin.get('see_also',[])) }}
 
-## Output
+{{ macros.affectedSection(ipv4_addresses,
+    ipv6_addresses,
+    ipv4_sockets,
+    ipv6_sockets,
+    ipv4_urls,
+    ipv6_urls,
+    hostnames,
+    hostname_sockets,
+    hostname_urls) }}

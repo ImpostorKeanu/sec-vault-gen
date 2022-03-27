@@ -9,8 +9,7 @@
 {% macro bulletList(value_list) -%}
 {% for v in value_list -%}
 - {{ v }}
-{%- endfor %}
-{%- endmacro %}
+{% endfor %}{%- endmacro %}
 
 {####################}
 
@@ -33,3 +32,57 @@
 {%- endmacro %}
 
 {####################}
+
+{% macro dumpList(l) -%}
+{% for v in l if v -%}
+{{ "\n"+(v|string) }}
+{%- endfor %}
+{%- endmacro %}
+
+{####################}
+
+{% macro pluginOutputSection(output, heading="# Plugin Output") -%}
+# Plugin Output
+
+```
+{{ output }}
+```
+{%- endmacro %}
+
+{% macro boldSectionCodeBlockList(heading, l) -%}
+{% if l -%}
+
+{{ heading }}
+
+```{{ dumpList(l) }}
+```
+
+{%- endif %}
+{%- endmacro %}
+
+{####################}
+
+{% macro affectedSection(ipv4_addresses,
+    ipv6_addresses,
+    ipv4_sockets,
+    ipv6_sockets,
+    ipv4_urls,
+    ipv6_urls,
+    hostnames,
+    hostname_sockets,
+    hostname_urls,
+    ports,
+    heading="# Affected") -%}
+{{ heading }}
+
+{{ boldSectionCodeBlockList('## IPv4 Address(es)', ipv4_addresses) }}
+{{ boldSectionCodeBlockList('## IPv4 Socket(s)', ipv4_sockets) }}
+{{ boldSectionCodeBlockList('## IPv4 URL(s)', ipv4_urls) }}
+{{ boldSectionCodeBlockList('## IPv6 Address(es)', ipv6_addresses) }}
+{{ boldSectionCodeBlockList('## IPv6 Socket(s)', ipv6_sockets) }}
+{{ boldSectionCodeBlockList('## IPv6 URL(s)', ipv6_urls) }}
+{{ boldSectionCodeBlockList('## Hostname(s)', hostnames) }}
+{{ boldSectionCodeBlockList('## Hostname Socket(s)', hostname_sockets) }}
+{{ boldSectionCodeBlockList('## Hostname URL(s)', hostname_urls) }}
+{{ boldSectionCodeBlockList('## Port(s)', ports) }}
+{%- endmacro %}

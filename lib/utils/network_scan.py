@@ -16,6 +16,7 @@ import shutil
 import yaml
 
 from IPython import embed
+import pdb
 
 from parsuite.parsers.nessus import parse_nessus
 from parsuite.parsers.nmap import parse_nmap
@@ -70,7 +71,8 @@ PATHS = []
 COMMON_PROTOCOLS = ['tcp', 'udp', 'sctp', 'ip']
 
 TEMPLATE_HOST = jenv.get_template('network_scan/host.md')
-TEMPLATE_VULN = jenv.get_template('network_scan/nessus_vulnerability.md')
+TEMPLATE_NES_VULN = jenv.get_template('network_scan/nessus_vulnerability.md')
+TEMPLATE_NES_PLUGIN = jenv.get_template('network_scan/nessus_plugin.md')
 
 def dictDropNone(dct:dict) -> None:
     '''Iterate over dct and delete any members that are
@@ -174,19 +176,36 @@ def handleReportHost(host:XMLGen.Host, root:Path, fingerprint:str):
       they have more service data.
     '''
 
-def resolveVaultRoot(root_dirname:str, path:Path):
-    '''
+def resolveVaultRoot(root_dirname:str, path:Path) -> str:
+    '''Accept the name of the root output directory and a path and
+    then read over each element in the path in reverse until the
+    last instance matching root_dirname is found.
+
+    Args:
+        root_dirname: Name of the output directory within the
+            target vault.
+        path: Path to iterate over.
+
+    Returns:
+        String path from the output directory to the final
+        element.
+
+    Raises:
+        Exception when the output directory is not found.
+
+    Notes:
+        - This is useful when generating relative links.
     '''
 
     parts = path.parts
     offset = None
 
-    for n in [_in for _in in range(0, len(parts))][::-1]:
+    for n in [rn for rn in range(0, len(parts))][::-1]:
         if root_dirname == parts[n]:
             offset = n
 
     if offset is None:
-        raise Exception('Failed to obtain vault root!')
+        raise Exception('Failed to obtain output root!')
 
     return '/'.join(parts[offset:])
 
@@ -319,7 +338,7 @@ def expandHosts(root:Path):
 
                     # capture a tag
                     port_fm['tags'].append(
-                        f'scan_result/port/{port}/{protocol}')
+                        f'scan_result/port/{protocol}/{port}')
 
                     # ==========================
                     # WRITE THE HOST'S PORT FILE
@@ -379,12 +398,45 @@ def expandHosts(root:Path):
                         vuln_file = dir_host_vulnerabilities / (
                             plugin_fname+'.md')
 
+                        ri['tags'] = [
+                            'scan_result/nessus/vulnerability',
+                            f'scan_result/nessus/risk_factor/{ri.get("risk_factor")}']
+
+                        ipv4_address = ri.get('ipv4_address')
+                        ipv6_address = ri.get('ipv6_address')
+                        ipv4_socket = ri.get('ipv4_socket')
+                        ipv6_socket = ri.get('ipv6_socket')
+                        ipv4_url = ri.get('ipv4_url')
+                        ipv6_url = ri.get('ipv6_url')
+                        hostname = ri.get('hostname')
+                        hostname_socket = ri.get('hostname_socket')
+                        hostname_url = ri.get('hostname_url')
+
                         with vuln_file.open('w+') as vfile:
                             FM.write(vfile, ri)
                             vfile.write(
-                                TEMPLATE_VULN.render(
-                                    plugin_name = plugin_name,
-                                    output = ri.get('plugin_output'))
+                                TEMPLATE_NES_VULN.render(
+                                    ipv4_addresses = [ipv4_address] if \
+                                        ipv4_address else None,
+                                    ipv6_addresses = [ipv6_address] if \
+                                        ipv6_address else None,
+                                    ipv4_sockets = [ipv4_socket] if \
+                                        ipv4_socket else None,
+                                    ipv6_sockets = [ipv6_socket] if \
+                                        ipv6_socket else None,
+                                    ipv4_urls = [ipv4_url] if \
+                                        ipv4_url else None,
+                                    ipv6_urls = [ipv6_url] if \
+                                        ipv6_url else None,
+                                    hostnames = [hostname] if \
+                                        hostname else None,
+                                    hostname_sockets = [hostname_socket] if \
+                                        hostname_socket else None,
+                                    hostname_urls = [hostname_url] if \
+                                        hostname_url else None,
+                                    ports = [port],
+                                    protocol = protocol,
+                                    output = ri.get('plugin_output')))
 
                     # TODO
                     # Link the port back to the proper protocol
@@ -410,6 +462,151 @@ def expandHosts(root:Path):
                     host=(
                         nmap_host if nmap_host else nessus_host),
                     ports = port_links))
+
+def handlePlugins(report, root:Path):
+
+    plugins_root = root / 'Junctures' / 'Nessus' / 'Plugins'
+
+    for plugin_id, plugin in report.plugins.items():
+
+        # ==============
+        # COLLECT VALUES
+        # ==============
+
+        ipv4_addresses = []
+        ipv6_addresses = []
+
+        ipv4_sockets = []
+        ipv6_sockets = []
+
+        ipv4_urls = []
+        ipv6_urls = []
+
+        hostnames = []
+        hostname_sockets = []
+        hostname_urls = []
+
+        ports = []
+
+        see_also = None
+
+        # Iterate over each host in the report
+        for ip, rhost in report.items():
+
+            # Iterate over each port/report item
+            for port in rhost.ports:
+
+                # Capture the port
+                if not port.number in ports:
+                    ports.append(port.number)
+
+                for ritem in port.report_items:
+
+                    # Compare plugin IDs
+                    if ritem.plugin_id == plugin_id:
+
+                        # Collect address information upon match
+                        i4 = ritem.ipv4_address
+                        if i4 is not None:
+                            ipv4_addresses.append(i4)
+
+                        i6 = ritem.ipv6_address
+                        if i6 is not None:
+                            ipv6_addresses.append(i6)
+
+                        i4sock = ritem.ipv4_socket
+                        if i4sock is not None:
+                            ipv4_sockets.append(i4sock)
+
+                        i6sock = ritem.ipv6_socket
+                        if i6sock is not None:
+                            ipv6_sockets.append(i6sock)
+
+                        i4url = ritem.ipv4_url
+                        if i4url is not None:
+                            ipv4_urls.append(i4url)
+
+                        i6url = ritem.ipv6_url
+                        if i6url is not None:
+                            ipv6_urls.append(i6url)
+
+                        hnames = ritem.hostnames
+                        if hnames:
+                            hostnames += hnames
+
+                        hsocks = ritem.hostname_sockets
+                        if hsocks:
+                            hostname_sockets += hsocks
+
+                        hurls = ritem.hostname_urls
+                        if hurls:
+                            hostname_urls += hurls
+
+        # ===================
+        # UNIQUE/ORDER VALUES
+        # ===================
+
+        ipv4_addresses = list(set(ipv4_addresses))
+        ipv6_addresses = list(set(ipv6_addresses))
+
+        ipv4_sockets = list(set(ipv4_sockets))
+        ipv6_sockets = list(set(ipv6_sockets))
+
+        ipv4_urls = list(set(ipv4_urls))
+        ipv6_urls = list(set(ipv6_urls))
+
+        hostnames = list(set(hostnames))
+        hostname_sockets = list(set(hostname_sockets))
+        hostname_urls = list(set(hostname_urls))
+
+        # ====================
+        # GENERATE FRONTMATTER
+        # ====================
+
+        fm = plugin.__dict__
+        fm['tags'] = [
+            f'scan_result/nessus/plugin/{plugin_id}',
+            f'scan_result/nessus/risk_factor/{plugin.risk_factor}']
+
+        fm['ipv4_addresses'] = ipv4_addresses
+        fm['ipv6_addresses'] = ipv6_addresses
+
+        fm['ipv4_sockets'] = ipv4_sockets
+        fm['ipv6_sockets'] = ipv6_sockets
+
+        fm['ipv4_urls'] = ipv4_urls
+        fm['ipv6_urls'] = ipv6_urls
+
+        fm['hostnames'] = hostnames
+        fm['hostname_sockets'] = hostname_sockets
+        fm['hostname_urls'] = hostname_urls
+
+        fm['ports'] = ports
+
+        # =====================
+        # WRITE THE PLUGIN FILE
+        # =====================
+
+        plugin_file = plugins_root / (plugin.plugin_name_slug+'.md')
+
+        Build.log.info(f'Writing plugin to disk: {str(plugin_file)}')
+        with plugin_file.open('w+') as pfile:
+            
+            # Write the frontmatter
+            FM.write(pfile, fm)
+            pfile.write(
+                TEMPLATE_NES_PLUGIN.render(
+                    plugin = fm,
+                    ipv4_addresses = ipv4_addresses,
+                    ipv6_addresses = ipv6_addresses,
+                    ipv4_sockets = ipv4_sockets,
+                    ipv6_sockets = ipv6_sockets,
+                    ipv4_urls = ipv4_urls,
+                    ipv6_urls = ipv6_urls,
+                    hostnames = hostnames,
+                    hostname_sockets = hostname_sockets,
+                    hostname_urls = hostname_urls,
+                    ports = ports))
 
 def getDirPath(path:str) -> Path:
     '''Given a string path, identify the Path object within
@@ -540,6 +737,10 @@ class Build(Util):
 
             Build.log.info(f'Processing > {str(_file)}')
             report = globals()['parse_'+fprint](tree, True)
+
+            if fprint == 'nessus':
+                Build.log.info('Writing plugins to disk')
+                handlePlugins(report, dir_results)
 
             for host in report.values():
                 handleReportHost(host, dir_results, fprint)
