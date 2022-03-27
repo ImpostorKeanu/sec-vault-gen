@@ -1,5 +1,5 @@
 {%- import 'network_scan/macros.template' as macros %}
-# {{ plugin.get('plugin_name') }}
+# Nessus Plugin > `{{ plugin.get('plugin_name') }}`
 
 ## Description
 
@@ -22,4 +22,5 @@
     hostnames,
     hostname_sockets,
     hostname_urls,
-    ports) }}
+    ports,
+    instances) }}

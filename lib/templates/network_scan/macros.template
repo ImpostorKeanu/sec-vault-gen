@@ -1,7 +1,11 @@
+{% macro dictBulletList(d, prefix="## ") -%}
+{% if d -%}
+{% for h, l in d.items() if l.__len__() > 0 -%}
+{{ prefix }}{{ h }}
 
-
-{% macro formatWikiLink(target, text) -%}
-[[{{ target }}|{{ text }}]]
+{{ bulletList(l) }}
+{% endfor %}
+{%- endif %}
 {%- endmacro %}
 
 {####################}
@@ -10,14 +14,6 @@
 {% for v in value_list -%}
 - {{ v }}
 {% endfor %}{%- endmacro %}
-
-{####################}
-
-{% macro writePort(port) -%}
-### {{ port['number'] }} / {{ port['protocol'] }} {% if port['service_name'] -%} // {{ port['service_name']|upper }} {%- endif %}
-
-{{ bulletList(bulletList(port.get('script_links', []))) }}
-{%- endmacro %}
 
 {####################}
 
@@ -57,7 +53,7 @@
 ```{{ dumpList(l) }}
 ```
 
-{%- endif %}
+{% endif %}
 {%- endmacro %}
 
 {####################}
@@ -72,9 +68,15 @@
     hostname_sockets,
     hostname_urls,
     ports,
+    instances=None,
     heading="# Affected") -%}
 {{ heading }}
 
+{% if instances %}
+## Instance Links
+
+{{ bulletList(instances) }}
+{% endif %}
 {{ boldSectionCodeBlockList('## IPv4 Address(es)', ipv4_addresses) }}
 {{ boldSectionCodeBlockList('## IPv4 Socket(s)', ipv4_sockets) }}
 {{ boldSectionCodeBlockList('## IPv4 URL(s)', ipv4_urls) }}

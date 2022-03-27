@@ -17,5 +17,8 @@
 - {{ link }}
 {% endfor %}
 {%- endfor %}
+{% if vuln_links %}
 # Vulnerabilities
+{{ macros.dictBulletList(vuln_links) }}
+{%- endif %}
 
