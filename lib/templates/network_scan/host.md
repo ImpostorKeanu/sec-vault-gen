@@ -1,5 +1,5 @@
 {%- import 'network_scan/macros.template' as macros %}
-# Host Details
+# Host > `{{ ip }}`
 
 | Detail        | Value |
 | ------------- | ----- |

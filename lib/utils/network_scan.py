@@ -5,6 +5,7 @@ from lib.globals import *
 from lib import shortcuts as sc
 from lib.jinja import environment as jenv
 from lib import frontmatter as FM
+from lib.tag import Tag
 from argparse import ArgumentParser, BooleanOptionalAction
 from logging import getLogger
 from pathlib import Path
@@ -32,15 +33,16 @@ from collections import namedtuple
 class SevDict(dict):
 
     def __init__(self, none:list=None, info:list=None, low:list=None,
-            medium:list=None, high:list=None, critical:list=None):
+            medium:list=None, high:list=None, critical:list=None,
+            initializer=list):
 
         return super().__init__(
-            none=none if none else list(),
-            info=info if info else list(),
-            low=low if low else list(),
-            medium=medium if medium else list(),
-            high=high if high else list(),
-            critical=critical if critical else list())
+            none=none if none else initializer(),
+            info=info if info else initializer(),
+            low=low if low else initializer(),
+            medium=medium if medium else initializer(),
+            high=high if high else initializer(),
+            critical=critical if critical else initializer())
 
 # ====================
 # FILESYSTEM TEMPLATES
@@ -53,20 +55,10 @@ Hosts: dir
 Junctures:
   Nessus:
     Plugins: dir
-    Severities:
-      Critical.md: file
-      High.md: file
-      Info.md: file
-      Low.md: file
-      Medium.md: file
-      None.md: file
+    Severities: dir
   Nmap:
     Scripts: dir
-  Ports:
-    All TCP Ports.md: file
-    All UDP Ports.md: file
-    All SCTP Ports.md: file
-    All IP Ports.md: file
+  Ports: dir
   All Hostnames.md: file
   All Hosts.md: file
 Services: dir
@@ -79,10 +71,6 @@ Nessus Vulnerabilities: dir
 Ports: dir
 Junctures:
   Hostnames.md: file
-  TCP Ports.md: file
-  UDP Ports.md: file
-  SCTP Ports.md: file
-  IP Ports.md: file
   Services.md: file
 ''', Loader=yaml.SafeLoader)
 
@@ -98,6 +86,24 @@ TEMPLATE_NES_PLUGIN = \
     jenv.get_template('network_scan/nessus_plugin.md')
 TEMPLATE_PORT = \
     jenv.get_template('network_scan/port.md')
+TEMPLATE_HOSTNAME = \
+    jenv.get_template('network_scan/hostname.md')
+TEMPLATE_JUNCT_NES_SEVERITIES = \
+    jenv.get_template('network_scan/juncture_severities.md')
+TEMPLATE_JUNCT_NMAP_SCRIPTS = \
+    jenv.get_template('network_scan/juncture_scripts.md')
+TEMPLATE_JUNCT_SERVICES = \
+    jenv.get_template('network_scan/juncture_services.md')
+TEMPLATE_JUNCT_HOST_SERVICES = \
+    jenv.get_template('network_scan/juncture_host_services.md')
+TEMPLATE_JUNCT_HOST_HOSTNAMES = \
+    jenv.get_template('network_scan/juncture_host_hostnames.md')
+TEMPLATE_JUNCT_ALL_HOSTNAMES = \
+    jenv.get_template('network_scan/juncture_all_hostnames.md')
+TEMPLATE_JUNCT_ALL_HOSTS = \
+    jenv.get_template('network_scan/juncture_all_hosts.md')
+TEMPLATE_JUNCT_HOST_PORTS = \
+    jenv.get_template('network_scan/juncture_host_ports.md')
 
 # ====================
 # ADDITIONAL VARIABLES
@@ -200,6 +206,12 @@ def handleReportHost(host:XMLGen.Host, root:Path, fingerprint:str):
         hdict = host.__dict__
         dictDropNone(hdict)
         fm[fingerprint+'_host'] = hdict
+
+        # Add a host tag
+        tags = fm.get('tags', list())
+        tags.append(Tag('scan_result/host'))
+        fm['tags'] = tags
+
         hf.seek(0)
         hf.truncate()
         FM.write(hf, fm)
@@ -263,14 +275,26 @@ def expandHosts(root:Path):
 
     hosts_path     = root / 'Hosts'
     hostnames_path = root / 'Hostnames'
+    services_path = root / 'Services'
     nessus_plugins_path = root / 'Junctures' / 'Nessus' / 'Plugins'
     nessus_severities_path = root / 'Junctures' / 'Nessus' / 'Severities'
-    hosts = {}
+    nmap_scripts_path = root / 'Junctures' / 'Nmap' / 'Scripts'
+    all_hosts_path = root / 'Junctures' / 'All Hosts.md'
+    all_hostnames_path = root / 'Junctures' / 'All Hostnames.md'
+
+    all_host_links = dict()
+    all_script_port_links = dict()
+    all_vuln_links = SevDict(initializer=dict)
+    all_port_links = dict()
+    all_service_port_links = dict()
+    all_hostname_links = dict()
 
     Build.log.info(f'Expanding hosts > {str(hosts_path)}')
     for host_path in hosts_path.glob('*'):
 
         host_vuln_links = SevDict()
+        host_service_links = dict()
+        host_hostname_links = list()
 
         # =================
         # GET THE HOST FILE
@@ -291,6 +315,12 @@ def expandHosts(root:Path):
                 host_file),
             text = host_path.name)
 
+        all_host_links[host_path.name] = sc.wikilink(
+                target = resolveVaultRoot(
+                    root.name,
+                    host_file),
+                text = host_path.name)
+
         if not host_file.exists():
             # Host file is missing
 
@@ -306,6 +336,7 @@ def expandHosts(root:Path):
         dir_host_junctures = host_path / 'Junctures'
         dir_host_ports = host_path / 'Ports'
         dir_host_vulnerabilities = host_path / 'Nessus Vulnerabilities'
+        host_hostnames_path = dir_host_junctures / 'Hostnames.md'
     
         # ==============================
         # READ METADATA AND MANAGE FILES
@@ -329,20 +360,49 @@ def expandHosts(root:Path):
                 nessus_host.get('hostnames', []))
 
             for hn in hostnames:
+
+                # =========================
+                # CAPTURE LINK FOR THE HOST
+                # =========================
+
                 hn = hn.lower()
+
                 hn_path = hostnames_path / addMd(hn)
 
-                with hn_path.open('w+') as hn_file:
+                hn_link = sc.wikilink(
+                    target = resolveVaultRoot(
+                        root.name,
+                        hn_path),
+                    text = hn)
 
-                    # Write hostname Frontmatter
-                    FM.write(
-                        hn_file,
-                        dict(
-                            tags=['scan_result/hostname']))
+                host_hostname_links.append(hn_link)
 
-                    # TODO: Link back to Hostnames file in the
-                    # host's directory
-                    # TODO: Write template here
+                # ==============================
+                # CAPTURE LINK FOR ALL HOSTNAMES
+                # ==============================
+
+                host_link = sc.wikilink(
+                    target = resolveVaultRoot(
+                        root.name,
+                        host_file),
+                    text = host_path.name)
+
+                if not hn in all_hostname_links:
+
+                    links = [host_link]
+
+                    all_hostname_links[hn] = dict(
+                        value = hn,
+                        path = hn_path,
+                        links = links,
+                        host_links = [hn_link])
+                else:
+
+                    all_hostname_links[hn]['links'].append(
+                        host_link)
+
+                    all_hostname_links[hn]['host_links'].append(
+                        hn_link)
 
             # ============
             # MANAGE PORTS
@@ -394,6 +454,10 @@ def expandHosts(root:Path):
     
                     if not nmap_port and not nessus_port:
                         continue
+
+                    # ======================
+                    # GET THE PORT'S SERVICE
+                    # ======================
     
                     # Attempt to get service details from Nmap
                     service = nmap_port.get('service', {})
@@ -408,9 +472,24 @@ def expandHosts(root:Path):
                                 'service_name_slug', None)
     
                     else:
+
+                        # ============
+                        # SERVICE TAGS
+                        # ============
     
                         port_fm['tags'].append(
                             f'scan_result/service/{service_name}')
+
+                    tsocket = (
+                        f'{protocol}://{host_path.name}:{port}' +
+                        (
+                            f' ({service_name.upper()})' if
+                            service_name else ''
+                        ))
+
+                    # ==============================
+                    # CRAFT PATHS/LINKS FOR THE PORT
+                    # ==============================
 
                     name_slug = '{protocol}{service}'.format(
                         protocol=protocol.upper(),
@@ -423,9 +502,55 @@ def expandHosts(root:Path):
 
                     port_file = dir_host_ports / addMd(port_file_name)
 
-                    port_links[protocol][port] = sc.wikilink(
-                        target = resolveVaultRoot(root.name, port_file),
+                    port_link_target = resolveVaultRoot(root.name,
+                        port_file)
+
+                    port_link = sc.wikilink(
+                        target = port_link_target,
                         text = port_file_name)
+
+                    port_links[protocol][port] = port_link
+
+                    # =====================
+                    # CAPTURE SERVICE LINKS
+                    # =====================
+
+                    if service_name:
+
+                        # =================
+                        # SERVICE PORT LINK
+                        # =================
+
+                        if not service_name in all_service_port_links.keys():
+
+                            all_service_port_links[service_name] = \
+                                    {host_path.name:[port_link]}
+
+                        else:
+
+                            sd = all_service_port_links[service_name]
+
+                            if not host_path.name in sd:
+                                sd[host_path.name] = []
+
+                            sd[host_path.name].append(port_link)
+
+                        # =================
+                        # HOST SERVICE LINK
+                        # =================
+
+                        sn = service_name.upper()
+
+                        service_link_target = resolveVaultRoot(root.name,
+                            (
+                                services_path /
+                                addMd(sn)))
+
+                        service_link = sc.wikilink(
+                            target = service_link_target,
+                            text = sn)
+
+                        host_service_links[sn] = service_link
 
                     # ============================
                     # WRITE THE VULNERABILITY FILE
@@ -435,8 +560,22 @@ def expandHosts(root:Path):
 
                     for ri in nessus_port.get('report_items', list()):
 
+                        # =========================
+                        # GET EXPLOITABILITY STATUS
+                        # =========================
+
+                        exploitable_text = ''
+                        exploitable_tag = 'not_exploitable'
+                        if ri.get('exploit_available', False):
+                            exploitable_text = ' 💀'
+                            exploitable_tag = 'exploitable'
+
                         plugin_name = ri.get('plugin_name')
                         plugin_fname = ri.get('plugin_name_slug') 
+
+                        # =================
+                        # BUILD PATHS/LINKS
+                        # =================
 
                         vuln_file = dir_host_vulnerabilities / addMd(
                             plugin_fname + f' - {port_file_name}')
@@ -446,13 +585,57 @@ def expandHosts(root:Path):
                                 root.name,(
                                     nessus_plugins_path /
                                     addMd(ri.get('plugin_name_slug')))),
-                            text = plugin_fname
+                            text = plugin_fname + exploitable_text
                         )
 
+                        severity = ri.get('risk_factor').capitalize()
+
+                        severity_link = sc.wikilink(
+                            target = resolveVaultRoot(
+                                root.name, (
+                                    nessus_severities_path /
+                                    addMd(severity))),
+                            text = severity)
+
+                        vuln_link_target = resolveVaultRoot(root.name,
+                            vuln_file)
+
+                        vuln_link = sc.wikilink(
+                                target = vuln_link_target,
+                                text = plugin_fname + exploitable_text)
+
+                        risk_factor = ri.get('risk_factor')
+
+                        port_vuln_links[risk_factor].append(
+                            vuln_link)
+
+                        host_vuln_links[risk_factor].append(
+                            vuln_link)
+
+                        # =====================
+                        # ADD TO ALL VULN LINKS
+                        # =====================
+
+                        vd = all_vuln_links[risk_factor]
+                        if not tsocket in vd:
+                            vd[tsocket] = [vuln_link]
+                        else:
+                            vd[tsocket].append(vuln_link)
+
+                        # ================
+                        # MANAGE PORT TAGS
+                        # ================
+
                         ri['tags'] = [
-                            'scan_result/nessus/vulnerability',
-                            'scan_result/nessus/risk_factor/'+
-                                ri.get("risk_factor")]
+                            'scan_result/nessus/vulnerability/' +
+                                exploitable_tag,
+                            'scan_result/nessus/risk_factor/' +
+                                ri.get("risk_factor")
+                        ]
+
+                        # ==================
+                        # GET ADDRESS VALUES
+                        # ==================
 
                         ipv4_address = ri.get('ipv4_address')
                         ipv6_address = ri.get('ipv6_address')
@@ -466,26 +649,6 @@ def expandHosts(root:Path):
                         hostname = ri.get('hostname')
                         hostname_socket = ri.get('hostname_socket')
                         hostname_url = ri.get('hostname_url')
-
-                        severity = ri.get('risk_factor').capitalize()
-
-                        severity_link = sc.wikilink(
-                            target = resolveVaultRoot(
-                                root.name, (
-                                    nessus_severities_path /
-                                    addMd(severity))),
-                            text = severity)
-
-                        vuln_link = sc.wikilink(
-                                target = resolveVaultRoot(
-                                    root.name, vuln_file),
-                                text = plugin_fname)
-
-                        port_vuln_links[ri.get('risk_factor')].append(
-                            vuln_link)
-
-                        host_vuln_links[ri.get('risk_factor')].append(
-                            vuln_link)
 
                         with vuln_file.open('w+') as vfile:
                             FM.write(vfile, ri)
@@ -517,10 +680,45 @@ def expandHosts(root:Path):
                                     output = ri.get('plugin_output'),
                                     juncture_link = junct_link))
 
+                    # ==============================
+                    # HANDLE THE PORT'S NMAP SCRIPTS
+                    # ==============================
+
+                    nmap_port_scripts = nmap_port.get('scripts', None)
+
+                    if nmap_port_scripts:
+
+                        for script in nmap_port_scripts:
+
+                            slug = script['id_slug']
+
+                            # ==========
+                            # PORT LINKS
+                            # ==========
+
+                            if not slug in all_script_port_links.keys():
+                                all_script_port_links[slug] = {
+                                    tsocket:[port_link]}
+                            else:
+                                if not tsocket in all_script_port_links[slug]:
+                                    all_script_port_links[slug][tsocket] = \
+                                        [port_link]
+                                else:
+                                    all_script_port_links[slug][tsocket] \
+                                        .append(port_link)
+
+                    # ============================
+                    # MANAGE THE PORT'S VULN LINKS
+                    # ============================
+
+                    for k in port_vuln_links.keys():
+                        port_vuln_links[k] = \
+                            sorted(list(set(port_vuln_links[k])))
+    
                     # ==========================
                     # WRITE THE HOST'S PORT FILE
                     # ==========================
-    
+
                     with port_file.open('w+') as pfile:
                         FM.write(pfile, port_fm)
                         pfile.write(
@@ -529,37 +727,174 @@ def expandHosts(root:Path):
                                 ip_address = host_path.name,
                                 port = port,
                                 service_name = service_name,
-                                scripts = nmap_port.get('scripts', None),
+                                scripts = nmap_port_scripts,
                                 vuln_links = (port_vuln_links if 
                                     port_vuln_links else None),
                                 # TODO: Update vault links.
                                 vault_links = None))
 
-                    # TODO
-                    # Link the port back to the proper protocol
-                    # juncture within the host's directory
-    
-                    # TODO
-                    # Look for a global service juncture and
-                    # write one when necessary
-    
-                    # TODO
-                    '''
-                    FINAL STEPS
-    
-                    - Clean port data from host frontmatter
-                    '''
-
             # ===================
             # WRITE HOST TEMPLATE
             # ===================
 
+            for k in list(host_vuln_links.keys()):
+
+                host_vuln_links[k] = sorted(
+                    list(
+                        set(
+                            list(host_vuln_links[k]))))
+
             hfile.write(
                 TEMPLATE_HOST.render(
+                    ip = host_path.name,
                     host=(
                         nmap_host if nmap_host else nessus_host),
                     ports = port_links,
-                    vuln_links = {k.capitalize():v for k,v in host_vuln_links.items()}))
+                    vuln_links = {
+                        k.capitalize()+' Severity':v for k,v in
+                        host_vuln_links.items()}))
+
+            # ===================
+            # WRITE HOST SERVICES
+            # ===================
+
+            with (dir_host_junctures / 'Services.md').open('w+') as f:
+
+                FM.write(f, dict(tags=['scan_result/juncture/service']))
+                f.write(
+                    TEMPLATE_JUNCT_HOST_SERVICES.render(
+                        links = host_service_links))
+
+            # ====================
+            # WRITE HOST HOSTNAMES
+            # ====================
+
+            with host_hostnames_path.open('w+') as f:
+
+                FM.write(f, dict(tags=['scan_result/juncture/hostname']))
+                f.write(
+                    TEMPLATE_JUNCT_HOST_HOSTNAMES.render(
+                        links = host_hostname_links))
+
+            # =========================
+            # WRITE HOST PORT JUNCTURES
+            # =========================
+
+            for protocol, links in port_links.items():
+
+
+                protocol = protocol.upper()
+
+                keys = sorted(list(set(list(links.keys()))))
+                links = [links[k] for k in keys]
+
+                if not links: continue
+                with (dir_host_junctures / addMd(
+                        protocol+' Ports')).open('w+') as f:
+                
+                    FM.write(f, dict(tags=['scan_result/juncture/port']))
+                    f.write(
+                        TEMPLATE_JUNCT_HOST_PORTS.render(
+                            host = host_path.name,
+                            protocol = protocol,
+                            links = list(set(list(links)))))
+
+    # ===============
+    # WRITE ALL HOSTS
+    # ===============
+
+    with all_hosts_path.open('w+') as f:
+
+        FM.write(f, dict(tags=['scan_result/juncture/hosts']))
+        f.write(
+            TEMPLATE_JUNCT_ALL_HOSTS.render(
+                names = sorted(list(set(list(all_host_links.keys())))),
+                links = sorted(list(set(list(all_host_links.values()))))))
+
+    # ===============
+    # WRITE HOSTNAMES
+    # ===============
+
+    for key in sorted(list(all_hostname_links.keys())):
+
+        values = all_hostname_links[key]
+
+        with values['path'].open('w+') as f:
+            FM.write(f, dict(tags = [
+                'scan_result/hostname',
+                'scan_result/juncture/hostname']))
+            f.write(
+                TEMPLATE_HOSTNAME.render(
+                    hostname = values['value'],
+                    links = values['links']))
+
+    with all_hostnames_path.open('w+') as f:
+
+        links = list()
+        values = list()
+        for hostname, v in all_hostname_links.items():
+            links += v['host_links']
+            values.append(hostname)
+
+        FM.write(f, dict(tags=[
+            'scan_result/juncture/severity',
+            'scan_result/juncture/hostname']))
+        f.write(
+            TEMPLATE_JUNCT_ALL_HOSTNAMES.render(
+                links = sorted(list(set(links))),
+                values = sorted(list(set(values)))))
+
+    # ========================
+    # WRITE SEVERITY JUNCTURES
+    # ========================
+
+    for severity, host_links in all_vuln_links.items():
+
+        for k in host_links.keys():
+            host_links[k] = sorted(list(set(host_links[k])))
+
+        if not host_links: continue
+
+        severity = severity.capitalize()
+
+        with (nessus_severities_path / addMd(severity)).open('w+') as f:
+
+            FM.write(f, dict(tags=['scan_result/juncture/severity']))
+
+            f.write(
+                TEMPLATE_JUNCT_NES_SEVERITIES.render(
+                    severity = severity,
+                    links = host_links))
+
+    # ======================
+    # WRITE SCRIPT JUNCTURES
+    # ======================
+
+    for slug, links in all_script_port_links.items():
+
+        with (nmap_scripts_path / addMd(slug)).open('w+') as f:
+
+            FM.write(f, dict(tags=['scan_result/juncture/script']))
+            f.write(
+                TEMPLATE_JUNCT_NMAP_SCRIPTS.render(
+                    script_name = slug,
+                    links = links))
+
+    # =======================
+    # WRITE SERVICE JUNCTURES
+    # =======================
+
+    for service, links in all_service_port_links.items():
+
+        service = service.upper()
+
+        with (services_path / addMd(service)).open('w+') as f:
+
+            FM.write(f, dict(tags=['scan_result/juncture/service']))
+            f.write(
+                TEMPLATE_JUNCT_SERVICES.render(
+                        service = service,
+                        links = links))
 
 def handlePlugins(report, root:Path):
 

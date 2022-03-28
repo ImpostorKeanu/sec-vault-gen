@@ -29,9 +29,9 @@
 
 {####################}
 
-{% macro dumpList(l) -%}
-{% for v in l if v -%}
-{{ "\n"+(v|string) }}
+{%- macro dumpList(l) -%}
+{%- for v in l if v %}
+{{ (v|string) }}
 {%- endfor %}
 {%- endmacro %}
 
@@ -50,7 +50,8 @@
 
 {{ heading }}
 
-```{{ dumpList(l) }}
+```
+{{ dumpList(l) }}
 ```
 
 {% endif %}
