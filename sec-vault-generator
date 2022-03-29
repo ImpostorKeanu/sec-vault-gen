@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from lib.utils import (attack, lolbas, network_scan)
+from sec_vault_generator.utils import (attack, lolbas, network_scan)
 from logging import getLogger
 from sys import exit
 

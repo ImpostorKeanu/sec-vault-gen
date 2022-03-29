@@ -1,5 +1,5 @@
-from lib.globals import *
-from lib.exceptions import *
+from sec_vault_generator.globals import *
+from sec_vault_generator.exceptions import *
 from functools import wraps
 from copy import deepcopy
 import requests
@@ -25,7 +25,7 @@ Arguments:
 ## Passing Standard Params and Data to API Calls
 
 REST parameters aside, all data and parameters are passed directly
-to the requests library for handling.
+to the requests sec_vault_generatorrary for handling.
 
 ## Passing Arguments to REST Parameters
 

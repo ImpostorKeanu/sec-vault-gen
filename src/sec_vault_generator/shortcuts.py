@@ -1,11 +1,11 @@
 import yaml
-from lib.globals import *
+from sec_vault_generator.globals import *
 from io import StringIO
 from git import Repo
 from logging import getLogger
 import re
 
-log = getLogger('lib.shortcuts')
+log = getLogger('sec_vault_generator.shortcuts')
 
 RE_SLASH = re.compile('(\\\|/|\.{2,}|:)+')
 RE_NON_WORD = re.compile('\W+')

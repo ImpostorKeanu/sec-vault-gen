@@ -1,7 +1,7 @@
 from argparse import (ArgumentParser as AP,
     _HelpAction as HA,
     BooleanOptionalAction)
-from lib.globals import *
+from sec_vault_generator.globals import *
 import inspect
 from functools import wraps
 

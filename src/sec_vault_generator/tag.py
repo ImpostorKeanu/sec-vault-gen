@@ -1,6 +1,6 @@
 import re
 import logging
-import lib.shortcuts as sc
+import sec_vault_generator.shortcuts as sc
 
 log = logging.getLogger('tag')
 

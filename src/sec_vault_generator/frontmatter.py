@@ -5,7 +5,7 @@ from io import TextIOWrapper, StringIO
 import logging
 from functools import wraps
 from copy import deepcopy
-from lib.tag import Tag,Tags
+from sec_vault_generator.tag import Tag,Tags
 
 log = logging.getLogger('frontmatter')
 

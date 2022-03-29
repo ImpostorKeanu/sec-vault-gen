@@ -1,10 +1,10 @@
-from lib.util import Util
-from lib.exceptions import *
-from lib import args
-from lib.globals import *
-from lib import shortcuts as sc
-from lib.jinja import environment as jenv
-from lib import frontmatter as FM
+from sec_vault_generator.util import Util
+from sec_vault_generator.exceptions import *
+from sec_vault_generator import args
+from sec_vault_generator.globals import *
+from sec_vault_generator import shortcuts as sc
+from sec_vault_generator.jinja import environment as jenv
+from sec_vault_generator import frontmatter as FM
 from argparse import ArgumentParser, BooleanOptionalAction
 from logging import getLogger
 from pathlib import Path
