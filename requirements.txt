@@ -2,3 +2,4 @@ requests
 GitPython
 pyaml
 Jinja2
+parsuite
