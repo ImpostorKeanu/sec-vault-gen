@@ -30,20 +30,6 @@ import lxml.etree as ET
 
 from collections import namedtuple
 
-class SevDict(dict):
-
-    def __init__(self, none:list=None, info:list=None, low:list=None,
-            medium:list=None, high:list=None, critical:list=None,
-            initializer=list):
-
-        return super().__init__(
-            none=none if none else initializer(),
-            info=info if info else initializer(),
-            low=low if low else initializer(),
-            medium=medium if medium else initializer(),
-            high=high if high else initializer(),
-            critical=critical if critical else initializer())
-
 # ====================
 # FILESYSTEM TEMPLATES
 # ====================
@@ -117,6 +103,61 @@ REPORT_ITEM_AFFECTED_ATTRS = \
      'hostname_urls']
 
 COMMON_PROTOCOLS = ['tcp', 'udp', 'sctp', 'ip']
+
+class SevDict(dict):
+    '''Dictionary of standard Nessus severity values.
+    '''
+
+    def __init__(self, none:list=None, info:list=None, low:list=None,
+            medium:list=None, high:list=None, critical:list=None,
+            initializer=list):
+        '''Initialize the dictionary. Each parameter argument should be
+        a callable that returns a container to hold values.
+        '''
+
+        super().__init__(
+            none=none if none else initializer(),
+            info=info if info else initializer(),
+            low=low if low else initializer(),
+            medium=medium if medium else initializer(),
+            high=high if high else initializer(),
+            critical=critical if critical else initializer())
+
+class AffectedValues(dict):
+
+    def __init__(
+            ipv4_addresses = None,
+            ipv6_addresses = None,
+            ipv4_sockets = None,
+            ipv6_sockets = None,
+            ipv4_urls = None,
+            ipv6_urls = None,
+            hostnames = None,
+            hostname_sockets = None,
+            hostname_urls = None,
+            ports = None,
+            initializer = list):
+
+        super().__init__(
+            ipv4_addresses = \
+                ipv4_addresses if ipv4_addresses else initializer(),
+            ipv4_sockets = \
+                ipv4_sockets if ipv4_sockets else initializer(),
+            ipv4_urls = \
+                ipv4_urls if ipv4_urls else initializer(),
+            ipv6_addresses = \
+                ipv6_addresses if ipv6_addresses else initializer(),
+            ipv6_sockets = \
+                ipv6_sockets if ipv6_sockets else initializer(),
+            ipv6_urls = \
+                ipv6_urls if ipv6_urls else initializer(),
+            hostnames = hostnames if hostnames else initializer(),
+            hostname_sockets = \
+                hostname_sockets if hostname_sockets else initializer(),
+            hostname_urls = \
+                hostname_urls if hostname_urls else initializer(),
+            ports = ports if ports else initializer())
+
 
 def dictDropNone(dct:dict) -> None:
     '''Iterate over dct and delete any members that are
@@ -216,23 +257,6 @@ def handleReportHost(host:XMLGen.Host, root:Path, fingerprint:str):
         hf.truncate()
         FM.write(hf, fm)
 
-    # ================
-    # TODO: HANDLE HOSTNAMES
-    # ================
-    '''
-    - Write them all to the host file
-      - Be sure to link this to the host's hostname juncture file
-    - Save one in the Hostnames directory
-    '''
-
-    # ============
-    # TODO: HANDLE PORTS
-    # ============
-    '''
-    - Ports from Nmap should be treated as authoritiative since
-      they have more service data.
-    '''
-
 def resolveVaultRoot(root_dirname:str, path:Path) -> str:
     '''Accept the name of the root output directory and a path and
     then read over each element in the path in reverse until the
@@ -266,11 +290,55 @@ def resolveVaultRoot(root_dirname:str, path:Path) -> str:
 
     return '/'.join(parts[offset:])
 
-def addMd(s:str):
+def addMd(s:str) -> str:
+    '''Add the .md suffix to a string. Useful when working with
+    Markdown file names.
+
+    Args:
+        s: String that will receive the suffix.
+
+    Returns:
+        Suffixed string.
+    '''
+
     return s+'.md'
 
-def expandHosts(root:Path):
+
+def splitDict(d:dict, keep:list) -> dict:
+    '''Return a new dictionary with only the elements identified
+    in keep.
+
+    Args:
+        keep: A list of elements to keep in the dictionary.
+
+    Returns:
+        A new dictionary.
     '''
+
+    return {
+        k:d[k] for k in keep
+        if k in d}
+
+def keepTags(d:dict, keep=['tags']):
+    '''Return a new dictionary while keeping only the "tags" element.
+
+    Args:
+        keep: A list of elements to keep in the dictionary.
+
+    Returns:
+        A new dictionary.
+    '''
+
+    return splitDict(d, keep)
+
+def nessusDump(root:Path):
+    '''
+    '''
+
+
+
+def expandHosts(root:Path):
+    '''DEPRECATE, probably.
     '''
 
     hosts_path     = root / 'Hosts'
@@ -651,7 +719,7 @@ def expandHosts(root:Path):
                         hostname_url = ri.get('hostname_url')
 
                         with vuln_file.open('w+') as vfile:
-                            FM.write(vfile, ri)
+                            FM.write(vfile, keepTags(ri))
                             vfile.write(
                                 TEMPLATE_NES_VULN.render(
                                     plugin_name = plugin_name,
@@ -720,7 +788,7 @@ def expandHosts(root:Path):
                     # ==========================
 
                     with port_file.open('w+') as pfile:
-                        FM.write(pfile, port_fm)
+                        FM.write(pfile, keepTags(port_fm))
                         pfile.write(
                             TEMPLATE_PORT.render(
                                 protocol = protocol,
@@ -744,6 +812,9 @@ def expandHosts(root:Path):
                         set(
                             list(host_vuln_links[k]))))
 
+            hfile.seek(0)
+            hfile.truncate()
+            FM.write(hfile, dict(tags=['scan_result/host']))
             hfile.write(
                 TEMPLATE_HOST.render(
                     ip = host_path.name,
@@ -906,21 +977,13 @@ def handlePlugins(report, root:Path):
         # COLLECT VALUES INTO REFERENCE CONTAINERS
         # ========================================
 
-        affected_values = dict(
-            ipv4_addresses      = list(),
-            ipv6_addresses      = list(),
-            ipv4_sockets        = list(),
-            ipv6_sockets        = list(),
-            ipv4_urls           = list(),
-            ipv6_urls           = list(),
-            hostnames           = list(),
-            hostname_sockets    = list(),
-            hostname_urls       = list(),
-            ports               = list(),
-        )
+        affected_values = AffectedValues()
 
         host_vuln_links = []
         see_also = None
+
+        embed()
+        exit()
 
         # Iterate over each host in the report
         for ip, rhost in report.items():
