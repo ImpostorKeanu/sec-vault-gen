@@ -103,70 +103,68 @@ def read(f:TextIOWrapper) -> dict:
     fm = {}
 
     if hasFrontmatter(f):
-
         # ====================
         # FIND THE FRONTMATTER
         # ====================
-
+   
         f.seek(len(DELIMITER))
         trailer = None
         while trailer != DELIMITER and trailer != '':
             trailer = f.readline()
 
-        if trailer:
+            if trailer:
 
-            try:
+                try:
 
-                # ==========================
-                # PARSE THE YAML FRONTMATTER
-                # ==========================
+                    # ==========================
+                    # PARSE THE YAML FRONTMATTER
+                    # ==========================
 
-                offset = f.tell()
-                f.seek(0)
-                fm = yaml.load(
-                    f.read(offset)[len(DELIMITER):-len(DELIMITER)],
-                    Loader=yaml.SafeLoader)
+                    offset = f.tell()
+                    f.seek(0)
+                    fm = yaml.load(
+                        f.read(offset)[len(DELIMITER):-len(DELIMITER)],
+                        Loader=yaml.SafeLoader)
 
-                tags = Tags()
-                
-                raw = fm.get('tags', '')
+                    tags = Tags()
+                    
+                    raw = fm.get('tags', '')
 
-                if raw and type(raw) == str:
+                    if raw and type(raw) == str:
 
-                    if not ' ' in raw:
-                        tags.append(Tag(raw))
+                        if not ' ' in raw:
+                            tags.append(Tag(raw))
 
-                    else:
+                        else:
 
-                        for t in raw.split(' '):
-                            if not t: continue
-                            tags.append(Tag(t))
+                            for t in raw.split(' '):
+                                if not t: continue
+                                tags.append(Tag(t))
 
-                elif raw and type(raw) == list:
+                    elif raw and type(raw) == list:
 
-                    for t in raw:
+                        for t in raw:
 
-                        try:
-                            tags.append(Tag(t))
-                        except Exception as e:
-                            log.debug(
-                                f'Failed to add tag to list {t}: {e}')
-                            continue
+                            try:
+                                tags.append(Tag(t))
+                            except Exception as e:
+                                log.debug(
+                                    f'Failed to add tag to list {t}: {e}')
+                                continue
 
-                fm['tags'] = tags
+                    fm['tags'] = tags
 
-            except Exception as e:
+                except Exception as e:
 
-                log.debug(
-                    f'Failed to parse frontmatter for {f.name}: {e}'
-                )
+                    log.debug(
+                        f'Failed to parse frontmatter for {f.name}: {e}'
+                    )
 
         else:
 
             log.debug(
                 f'No Frontmatter found in {f.name}'
             )
-
     return fm
 
 @checkModes(modes=['readable'])

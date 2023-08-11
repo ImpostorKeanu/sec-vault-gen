@@ -100,15 +100,18 @@ class Build(Util):
                 # PREPARE ACKNOWLEDGEMENTS
                 # ========================
                 
-                acks = []
-                for ack in fm.get('Acknowledgement',[]):
-                    person, handle = ack.get('Person'), ack.get('Handle')
-                    if person and not handle:
-                        acks.append(person)
-                    elif handle and not person:
-                        acks.append(handle)
-                    elif handle and person:
-                        acks.append(f'{person} ({handle})')
+                try:
+                    acks = []
+                    for ack in fm.get('Acknowledgement',[]):
+                        person, handle = ack.get('Person'), ack.get('Handle')
+                        if person and not handle:
+                            acks.append(person)
+                        elif handle and not person:
+                            acks.append(handle)
+                        elif handle and person:
+                            acks.append(f'{person} ({handle})')
+                except:
+                    acks.append('Error getting Acknowledgement')
     
                 # ========================
                 # WRITE THE LOLBAS TO DISK
@@ -127,6 +130,11 @@ class Build(Util):
                     # WRITE THE TEMPLATE
                     # ==================
 
+                    try:
+                        resource_string = [r['Link'] for r in fm.get('Resources',[])]
+                    except:
+                        resource_string = "Error Getting Resource String"
+
                     of.write(
                         lolbas_temp.render(
                             name=fm['Name'],
@@ -134,7 +142,7 @@ class Build(Util):
                             created=fm['Created'],
                             description=fm['Description'],
                             paths=[f"`{p['Path']}`" for p in fm.get('Full_Path',[])],
-                            resources=[r['Link'] for r in fm.get('Resources',[])],
+                            resources=resource_string,
                             acks=acks,
                             commands_by_category=commands_by_category))
 
